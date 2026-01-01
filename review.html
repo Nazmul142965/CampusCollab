@@ -1,0 +1,1113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CampusCollab – Student • Faculty • Admin</title>
+
+<!-- Tailwind / Fonts / Icons -->
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.js"></script>
+<script>tailwind.config={theme:{extend:{fontFamily:{sans:['Inter','sans-serif']}}}}</script>
+
+<style>
+  .view{display:none}.view.active{display:block}
+  .panel{display:none}.panel.active{display:block}
+  #authenticated-shell{display:none}
+  .input-error{border-color:#EF4444!important}.input-error:focus{--tw-ring-color:#EF4444}
+  .icon-btn:focus{outline:none;box-shadow:0 0 0 3px rgba(59,130,246,.35)}
+  .card-hover{transition:box-shadow .2s,transform .1s}.card-hover:hover{box-shadow:0 8px 24px rgba(0,0,0,.08);transform:translateY(-1px)}
+  #toast{position:fixed;right:1rem;bottom:1rem;z-index:50;background:#111827;color:#fff;padding:.75rem 1rem;border-radius:.75rem;box-shadow:0 10px 18px rgba(0,0,0,.15);opacity:0;transform:translateY(8px);transition:.2s}
+  #toast.show{opacity:1;transform:translateY(0)}#toast.success{background:#16A34A}#toast.error{background:#DC2626}#toast.info{background:#2563EB}
+  .role-badge{font-size:.7rem}
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:60}
+  .modal.show{display:flex}
+  .muted{color:#6B7280}
+  .pill{background:#EEF2FF;color:#4338CA;border-radius:999px;padding:.125rem .5rem;font-weight:600;font-size:.75rem}
+  .badge{background:#F1F5F9;color:#0F172A;border-radius:.5rem;padding:.15rem .5rem;font-size:.75rem}
+  .btn{display:inline-flex;align-items:center;gap:.5rem}
+</style>
+</head>
+<body class="bg-gray-100 text-gray-800 font-sans">
+
+<!-- =================== AUTH (WELCOME) =================== -->
+<div id="welcome-shell" class="min-h-screen flex items-center justify-center p-4">
+  <div class="w-full max-w-6xl bg-white rounded-2xl shadow-2xl overflow-hidden grid grid-cols-1 md:grid-cols-2">
+    <!-- Branding -->
+    <aside class="hidden md:flex flex-col items-center justify-center bg-blue-600 text-white p-12 text-center">
+      <i data-lucide="users" class="w-24 h-24 mb-6"></i>
+      <h1 class="text-4xl font-bold mb-3">CampusCollab</h1>
+      <p class="text-blue-100 max-w-sm">Unified platform for students & faculty to connect, share, and grow — with admin oversight.</p>
+    </aside>
+
+    <!-- Forms -->
+    <section class="p-8 sm:p-12 space-y-10">
+
+      <!-- LOGIN -->
+      <div id="login" class="view active">
+        <h2 class="text-3xl font-bold">Sign In</h2>
+        <p class="text-gray-600 mb-6">Select role and enter credentials.</p>
+
+        <div class="grid grid-cols-3 gap-2 mb-4">
+          <button data-role="student" class="role-btn px-3 py-2 rounded-lg bg-blue-50 text-blue-700 font-semibold ring-2 ring-blue-500">Student</button>
+          <button data-role="faculty" class="role-btn px-3 py-2 rounded-lg bg-blue-50 text-blue-700 font-semibold">Faculty</button>
+          <button data-role="admin"   class="role-btn px-3 py-2 rounded-lg bg-red-50  text-red-700  font-semibold">Admin</button>
+        </div>
+
+        <form id="login-form" class="space-y-5" onsubmit="handleLogin(event)" novalidate>
+          <div>
+            <label id="login-credential-label" class="text-sm font-medium">Email</label>
+            <input id="login-credential" type="email" required pattern=".+@seu\.edu\.bd$"
+              class="w-full px-4 py-2.5 mt-1 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="your-id@seu.edu.bd" aria-describedby="login-credential-help login-credential-error">
+            <p id="login-credential-help" class="text-xs text-gray-500 mt-1">Students/Faculty: use <b>@seu.edu.bd</b>. Admin uses username.</p>
+            <p id="login-credential-error" class="text-red-500 text-xs mt-1 h-4"></p>
+          </div>
+          <div>
+            <label class="text-sm font-medium">Password</label>
+            <div class="relative">
+              <input id="login-password" type="password" required class="w-full px-4 py-2.5 mt-1 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="••••••••">
+              <button type="button" onclick="togglePassword('login-password')" class="absolute inset-y-0 right-0 px-4 text-gray-500 hover:text-blue-600 icon-btn" aria-label="Show/Hide password"><i data-lucide="eye" class="w-5 h-5"></i></button>
+            </div>
+          </div>
+          <div class="flex items-center justify-between text-sm">
+            <label class="inline-flex items-center gap-2"><input id="remember" type="checkbox" class="rounded"> Remember me</label>
+            <span class="text-blue-600 opacity-70">Forgot password?</span>
+          </div>
+          <button type="submit" class="w-full py-3 font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700">Login</button>
+        </form>
+
+        <!-- Hidden for Admin; visible for Student/Faculty -->
+        <p id="login-signup-hint" class="text-sm text-center text-gray-600 mt-6">
+          Don’t have an account? <button class="text-blue-600 hover:underline" id="go-signup">Signup</button>
+        </p>
+      </div>
+
+      <!-- SIGNUP (scene) -->
+      <div id="signup" class="view">
+        <h2 class="text-3xl font-bold">Create Account</h2>
+        <p id="signup-subtitle" class="text-gray-600 mb-4">Student account: Name, Student ID, University Email, Password</p>
+
+        <div class="grid grid-cols-2 gap-2 mb-4">
+          <button data-srole="student" class="srole-btn px-3 py-2 rounded-lg bg-blue-100 text-blue-700 font-semibold ring-2 ring-blue-500">Student</button>
+          <button data-srole="faculty" class="srole-btn px-3 py-2 rounded-lg bg-blue-50 text-blue-700 font-semibold">Faculty</button>
+        </div>
+
+        <form id="signup-form" class="space-y-4" onsubmit="handleSignup(event)" novalidate>
+          <div>
+            <label class="text-sm font-medium">Full Name</label>
+            <input id="su-name" type="text" required class="w-full px-4 py-2.5 mt-1 border rounded-lg" placeholder="Nazmul Hasan">
+          </div>
+
+          <!-- Student ID (shown only for Student) -->
+          <div id="su-id-wrap">
+            <label class="text-sm font-medium">Student ID</label>
+            <input id="su-id" type="text" class="w-full px-4 py-2.5 mt-1 border rounded-lg" placeholder="2023100000081">
+          </div>
+
+          <div>
+            <label class="text-sm font-medium">University Email</label>
+            <input id="su-email" type="email" required pattern=".+@seu\.edu\.bd$"
+                   class="w-full px-4 py-2.5 mt-1 border rounded-lg"
+                   placeholder="2023100000081@seu.edu.bd" aria-describedby="su-email-help su-email-error">
+            <p id="su-email-help" class="text-xs text-gray-500 mt-1">Must be a valid <b>@seu.edu.bd</b> email.</p>
+            <p id="su-email-error" class="text-red-500 text-xs mt-1 h-4"></p>
+          </div>
+
+          <div>
+            <label class="text-sm font-medium">Create Password</label>
+            <div class="relative">
+              <input id="su-password" type="password" required class="w-full px-4 py-2.5 mt-1 border rounded-lg" placeholder="••••••••">
+              <button type="button" onclick="togglePassword('su-password')" class="absolute inset-y-0 right-0 px-4 text-gray-500 hover:text-blue-600 icon-btn" aria-label="Show/Hide password"><i data-lucide="eye" class="w-5 h-5"></i></button>
+            </div>
+          </div>
+
+          <input id="su-role" type="hidden" value="student">
+          <button type="submit" class="w-full py-3 font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700">Create Account</button>
+        </form>
+
+        <p class="text-xs text-gray-500 mt-3" id="signup-note">Placeholders: <b>Nazmul Hasan</b>, <b>2023100000081</b>, <b>2023100000081@seu.edu.bd</b>. (Faculty: <b>Shimul Dey Katha</b>, <b>shimul.katha@seu.edu.bd</b>)</p>
+        <p class="text-sm text-center text-gray-600 mt-6">Already have an account? <button class="text-blue-600 hover:underline" id="back-to-login">Login</button></p>
+      </div>
+
+      <div class="text-center text-xs text-gray-500 border-t pt-6">
+        <p>&copy; 2025 CampusCollab. All rights reserved.</p>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- =================== AUTHENTICATED SHELL =================== -->
+<div id="authenticated-shell" class="h-screen">
+  <div class="flex h-full">
+    <!-- Sidebar -->
+    <aside class="w-72 bg-white border-r border-gray-200 flex flex-col">
+      <div class="p-6 border-b">
+        <h1 class="text-2xl font-bold text-blue-600">CampusCollab</h1>
+        <div class="mt-1 text-sm text-gray-500 flex items-center gap-2">
+          <span id="role-chip" class="px-2 py-0.5 rounded bg-gray-100 text-gray-700 role-badge">role</span>
+        </div>
+      </div>
+      <nav id="sidebar-links" class="flex-1 p-4 space-y-2"></nav>
+      <div class="p-4 border-t">
+        <a href="#profile" class="nav-link flex items-center w-full px-4 py-3 text-left text-gray-700 rounded-lg hover:bg-gray-100">
+          <img id="sidebar-avatar" src="https://placehold.co/40x40/E2E8F0/4A5568?text=U" alt="" class="w-10 h-10 rounded-full mr-3">
+          <div>
+            <p id="sidebar-user-name" class="font-semibold">User Name</p>
+            <p class="text-sm text-gray-500">View Profile</p>
+          </div>
+        </a>
+        <button onclick="logout()" class="w-full mt-2 flex items-center justify-center px-4 py-2 text-gray-700 rounded-lg hover:bg-red-50 hover:text-red-600"><i data-lucide="log-out" class="w-5 h-5 mr-3"></i> Logout</button>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="flex-1 bg-gray-100 overflow-y-auto">
+      <div class="p-8">
+
+        <!-- DASHBOARD -->
+        <section id="dashboard" class="panel">
+          <h2 class="text-3xl font-bold mb-2">Welcome back, <span id="welcome-name">User</span>!</h2>
+          <p class="text-gray-600 mb-6">Here’s what’s happening today.</p>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <button id="card-requests" class="bg-white p-6 rounded-lg shadow-sm flex items-center justify-between card-hover w-full text-left">
+              <div class="flex items-center"><div class="p-3 rounded-full bg-blue-100 mr-4"><i data-lucide="handshake" class="w-6 h-6 text-blue-600"></i></div><div><p class="text-gray-500 text-sm">Skill requests</p><p class="text-2xl font-bold" id="count-requests">0</p></div></div>
+              <span class="pill hidden md:inline">View</span>
+            </button>
+            <button id="card-events" class="bg-white p-6 rounded-lg shadow-sm flex items-center justify-between card-hover w-full text-left">
+              <div class="flex items-center"><div class="p-3 rounded-full bg-green-100 mr-4"><i data-lucide="calendar-days" class="w-6 h-6 text-green-600"></i></div><div><p class="text-gray-500 text-sm">Upcoming events</p><p class="text-2xl font-bold" id="count-events">0</p></div></div>
+              <span class="pill hidden md:inline">EventHub</span>
+            </button>
+            <button id="card-jobs" class="bg-white p-6 rounded-lg shadow-sm flex items-center justify-between card-hover w-full text-left">
+              <div class="flex items-center"><div class="p-3 rounded-full bg-yellow-100 mr-4"><i data-lucide="briefcase" class="w-6 h-6 text-yellow-600"></i></div><div><p class="text-gray-500 text-sm">Jobs</p><p class="text-2xl font-bold" id="count-jobs">0</p></div></div>
+              <span class="pill hidden md:inline">CampusCareer</span>
+            </button>
+            <button id="card-unread" class="bg-white p-6 rounded-lg shadow-sm flex items-center justify-between card-hover w-full text-left">
+              <div class="flex items-center"><div class="p-3 rounded-full bg-purple-100 mr-4"><i data-lucide="message-square" class="w-6 h-6 text-purple-600"></i></div><div><p class="text-gray-500 text-sm">Unread</p><p class="text-2xl font-bold" id="count-unread">0</p></div></div>
+              <span class="pill hidden md:inline">CampusTalk</span>
+            </button>
+          </div>
+
+          <div class="mt-8" id="my-skill-requests" class="hidden"></div>
+        </section>
+
+        <!-- SKILLSWAP: everyone sees skills; requestable -->
+        <section id="skillswap" class="panel">
+          <div class="flex items-center justify-between mb-6">
+            <h2 class="text-3xl font-bold">SkillSwap</h2>
+            <div class="flex gap-2 items-center">
+              <input id="skill-search" class="border rounded-lg px-3 py-2" placeholder="Search skills or users">
+              <button id="skill-search-btn" class="btn bg-gray-200 px-3 py-2 rounded">Search</button>
+            </div>
+          </div>
+          <div id="skills-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+        </section>
+
+        <!-- EVENTHUB -->
+        <section id="eventhub" class="panel">
+          <div class="flex items-center justify-between mb-6">
+            <h2 class="text-3xl font-bold">EventHub</h2>
+            <button id="btn-create-event" class="bg-green-600 text-white px-5 py-2 rounded-lg font-semibold hover:bg-green-700 flex items-center"><i data-lucide="plus" class="w-5 h-5 mr-2"></i> Create Event</button>
+          </div>
+          <div class="flex items-center gap-2 mb-4">
+            <input id="event-search" class="border rounded px-3 py-2" placeholder="Search events">
+            <button id="event-search-btn" class="bg-gray-200 px-3 py-2 rounded">Search</button>
+          </div>
+          <div id="events-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+        </section>
+
+        <!-- FACULTY RATING -->
+        <section id="faculty-rating" class="panel">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-3xl font-bold">Faculty Rating</h2>
+            <div class="flex gap-2 items-center"><input id="fac-search" class="border rounded px-3 py-2" placeholder="Search faculty"><button id="fac-search-btn" class="bg-gray-200 px-3 py-2 rounded">Search</button></div>
+          </div>
+          <div id="fac-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+        </section>
+
+        <!-- PROJECTXPO -->
+        <section id="projectxpo" class="panel">
+          <div class="flex items-center justify-between mb-6">
+            <h2 class="text-3xl font-bold">ProjectXpo</h2>
+            <button id="btn-post-project" class="hidden bg-blue-600 text-white px-5 py-2 rounded-lg font-semibold hover:bg-blue-700"><i data-lucide="upload" class="w-5 h-5 inline mr-2"></i> Post Project</button>
+          </div>
+          <div id="projects-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+        </section>
+
+        <!-- CAMPUSCAREER -->
+        <section id="campuscareer" class="panel">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-3xl font-bold">CampusCareer</h2>
+            <button id="btn-post-job" class="hidden bg-blue-600 text-white px-5 py-2 rounded-lg font-semibold hover:bg-blue-700"><i data-lucide="plus" class="w-5 h-5 inline mr-2"></i> Post</button>
+          </div>
+          <div class="grid md:grid-cols-3 gap-4 mb-4">
+            <input id="job-search" class="border rounded px-3 py-2" placeholder="Search jobs, internships, research">
+            <button id="job-search-btn" class="bg-gray-200 px-3 py-2 rounded">Search</button>
+            <div id="cv-wrap" class="hidden md:col-span-1">
+              <label class="block text-sm font-medium mb-1">My CV (PDF)</label>
+              <input id="cv-file" type="file" accept=".pdf" class="border rounded px-3 py-2 w-full">
+              <button id="cv-save" class="mt-2 bg-blue-600 text-white px-3 py-1.5 rounded">Save CV</button>
+              <p id="cv-status" class="text-xs text-gray-500 mt-1"></p>
+            </div>
+          </div>
+          <div id="jobs-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+        </section>
+
+        <!-- CAMPUSTALK -->
+        <section id="campustalk" class="panel">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-3xl font-bold">CampusTalk</h2>
+            <span class="badge" id="unread-indicator">Unread: 0</span>
+          </div>
+          <div class="bg-white h-[calc(100vh-210px)] rounded-lg shadow-sm flex border">
+            <div class="w-1/3 border-r flex flex-col">
+              <div class="p-4 border-b"><input id="chat-search" type="text" placeholder="Search contacts..." class="w-full p-2 border rounded-lg"></div>
+              <div id="contacts" class="flex-1 overflow-y-auto"></div>
+            </div>
+            <div class="w-2/3 flex flex-col">
+              <div id="chat-header" class="p-4 border-b flex items-center gap-3 text-gray-700">Select a contact</div>
+              <div id="chat-thread" class="flex-1 p-6 overflow-y-auto space-y-3"></div>
+              <div class="p-4 border-t">
+                <div class="relative">
+                  <input id="chat-input" type="text" placeholder="Type a message..." class="w-full p-3 pr-12 border rounded-lg" aria-label="Type a message" disabled>
+                  <button id="chat-send" class="absolute right-3 top-1/2 -translate-y-1/2 text-blue-600 icon-btn" aria-label="Send" disabled><i data-lucide="send" class="w-6 h-6"></i></button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <p class="text-xs text-gray-500 mt-2">Contacts show unread in bold. Your messages show <b>Unseen</b> until the other user opens the thread; then they flip to <b>Read</b>.</p>
+        </section>
+
+        <!-- FACULTY EXTRAS -->
+        <section id="faculty-ratings-view" class="panel">
+          <h2 class="text-3xl font-bold mb-6">My Ratings (Faculty)</h2>
+          <div id="my-fac-ratings" class="bg-white p-6 rounded-lg shadow-sm">Search yourself in Faculty Rating to view details.</div>
+        </section>
+
+        <!-- PROFILE (shared; NO separate Portfolio panel) -->
+        <section id="profile" class="panel">
+          <h2 class="text-3xl font-bold mb-6">My Profile</h2>
+          <div class="bg-white p-6 rounded-lg shadow-sm space-y-6">
+            <div class="flex items-center gap-4">
+              <img id="profile-avatar-2" src="https://placehold.co/96x96/E2E8F0/4A5568?text=U" class="w-24 h-24 rounded-full border-4 border-blue-200" alt="">
+              <div>
+                <h3 id="profile-name-2" class="text-2xl font-bold">User Name</h3>
+                <p id="profile-id-2" class="text-gray-600">ID: —</p>
+                <p id="profile-email-2" class="text-gray-600">—</p>
+              </div>
+            </div>
+
+            <div>
+              <h4 class="text-xl font-semibold mb-2">Bio</h4>
+              <textarea id="bio-text" class="w-full border rounded p-3" rows="3" placeholder="Write a short bio..."></textarea>
+              <button id="bio-save" class="mt-2 bg-blue-600 text-white px-3 py-1.5 rounded">Save Bio</button>
+            </div>
+
+            <div>
+              <h4 class="text-xl font-semibold mb-2">Education</h4>
+              <div class="grid md:grid-cols-4 gap-2 mb-2">
+                <input id="edu-school" class="border rounded px-2 py-1" placeholder="School/College/University">
+                <input id="edu-degree" class="border rounded px-2 py-1" placeholder="Degree">
+                <input id="edu-result" class="border rounded px-2 py-1" placeholder="Result/CGPA">
+                <button id="edu-add" class="bg-gray-200 px-3 py-2 rounded">Add</button>
+              </div>
+              <ul id="edu-list" class="space-y-2"></ul>
+            </div>
+
+            <div>
+              <h4 class="text-xl font-semibold mb-2">My Skills (Image, Title, Description, File)</h4>
+              <div class="grid md:grid-cols-4 gap-2 mb-2">
+                <input id="sk-title" class="border rounded px-2 py-1" placeholder="Skill title">
+                <input id="sk-image" type="file" accept="image/*" class="border rounded px-2 py-1">
+                <input id="sk-file" type="file" class="border rounded px-2 py-1">
+                <button id="sk-add" class="bg-gray-200 px-3 py-2 rounded">Add Skill</button>
+              </div>
+              <textarea id="sk-desc" class="w-full border rounded p-2 mb-2" rows="2" placeholder="Short description..."></textarea>
+              <ul id="my-skill-list" class="space-y-2"></ul>
+            </div>
+          </div>
+        </section>
+
+        <!-- ADMIN -->
+        <section id="admin-dashboard" class="panel">
+          <h2 class="text-3xl font-bold mb-6">Admin Dashboard</h2>
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="bg-white p-6 rounded-lg shadow-sm">
+              <h3 class="font-semibold mb-3">Manage Users</h3>
+              <table class="w-full text-sm"><thead><tr class="text-left text-gray-500"><th class="py-2">Name</th><th>ID</th><th>Role</th><th></th></tr></thead><tbody id="user-table"></tbody></table>
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow-sm">
+              <h3 class="font-semibold mb-3">Event Approvals</h3>
+              <ul id="pending-events" class="space-y-2"></ul>
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow-sm">
+              <h3 class="font-semibold mb-3">Moderation</h3>
+              <p class="text-sm muted">Admins can remove any project, event, or career post from their respective pages.</p>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- ============== MODALS ============== -->
+<!-- Project modal -->
+<div id="project-modal" class="modal">
+  <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg">
+    <h3 class="text-xl font-bold mb-4">Post a Project</h3>
+    <div class="space-y-3">
+      <input id="pj-title" type="text" class="w-full border rounded-lg p-2" placeholder="Project title">
+      <textarea id="pj-desc" rows="4" class="w-full border rounded-lg p-2" placeholder="Short description"></textarea>
+      <input id="pj-image" type="file" accept="image/*" class="w-full border rounded-lg p-2">
+      <input id="pj-file" type="file" class="w-full border rounded-lg p-2">
+    </div>
+    <div class="flex justify-end gap-2 mt-4">
+      <button id="pj-cancel" class="px-4 py-2 rounded-lg bg-gray-100">Cancel</button>
+      <button id="pj-save" class="px-4 py-2 rounded-lg bg-blue-600 text-white">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Event modal -->
+<div id="event-modal" class="modal">
+  <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg">
+    <h3 class="text-xl font-bold mb-4">Create Event</h3>
+    <div class="space-y-3">
+      <input id="ev-title" type="text" class="w-full border rounded-lg p-2" placeholder="Event title">
+      <textarea id="ev-desc" rows="3" class="w-full border rounded-lg p-2" placeholder="Description"></textarea>
+      <input id="ev-image" type="file" accept="image/*" class="w-full border rounded-lg p-2">
+      <div class="grid md:grid-cols-2 gap-2">
+        <input id="ev-start" type="datetime-local" class="w-full border rounded-lg p-2">
+        <input id="ev-end" type="datetime-local" class="w-full border rounded-lg p-2">
+      </div>
+    </div>
+    <div class="flex justify-end gap-2 mt-4">
+      <button id="ev-cancel" class="px-4 py-2 rounded-lg bg-gray-100">Cancel</button>
+      <button id="ev-save" class="px-4 py-2 rounded-lg bg-green-600 text-white">Submit for Approval</button>
+    </div>
+  </div>
+</div>
+
+<!-- Job modal -->
+<div id="job-modal" class="modal">
+  <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg">
+    <h3 class="text-xl font-bold mb-4">Post to CampusCareer</h3>
+    <div class="space-y-3">
+      <input id="job-title" type="text" class="w-full border rounded-lg p-2" placeholder="Title">
+      <input id="job-type" type="text" class="w-full border rounded-lg p-2" placeholder="Type (Job/Internship/Research)">
+      <textarea id="job-desc" rows="4" class="w-full border rounded-lg p-2" placeholder="Description"></textarea>
+      <input id="job-image" type="file" accept="image/*" class="w-full border rounded-lg p-2">
+    </div>
+    <div class="flex justify-end gap-2 mt-4">
+      <button id="job-cancel" class="px-4 py-2 rounded-lg bg-gray-100">Cancel</button>
+      <button id="job-save" class="px-4 py-2 rounded-lg bg-blue-600 text-white">Publish</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* =================== Utilities & State =================== */
+const $ = sel => document.querySelector(sel);
+const $$ = sel => document.querySelectorAll(sel);
+function toast(msg,type='success'){const t=$('#toast');t.textContent=msg;t.className='show '+type;setTimeout(()=>t.className=t.className.replace('show','').trim(),2200)}
+function togglePassword(id){const el=document.getElementById(id);const ic=el.parentElement.querySelector('i');if(el.type==='password'){el.type='text';ic.setAttribute('data-lucide','eye-off')}else{el.type='password';ic.setAttribute('data-lucide','eye')}lucide.createIcons()}
+const readFileAsDataURL = file => new Promise(res=>{if(!file)return res(null);const r=new FileReader();r.onload=()=>res(r.result);r.readAsDataURL(file);});
+
+const STATE={role:'student',srole:'student',currentUser:null,users:[]};
+const ADMIN_LOGIN={username:'admin',password:'admin'};
+const ADMIN_PROFILE={role:'admin',name:'System Admin',id:'ADMIN-000',email:'admin@local'};
+
+const now = ()=>Date.now();
+
+/* ----- Storage helpers ----- */
+const load = (k,def)=>{try{const v=JSON.parse(localStorage.getItem(k));return v??def}catch{return def}}
+const save = (k,v)=>localStorage.setItem(k,JSON.stringify(v));
+const push = (k,item)=>{const a=load(k,[]);a.unshift(item);save(k,a);return a}
+const uid = ()=>Math.random().toString(36).slice(2)+Date.now().toString(36);
+
+function loadUsers(){STATE.users=load('cc_users',[])}
+function saveUsers(){save('cc_users',STATE.users)}
+function setSession(u){save('cc_session',u)}
+function getSession(){return load('cc_session',null)}
+function clearSession(){localStorage.removeItem('cc_session')}
+
+/* Collections */
+const getChats=()=>load('cc_chats',{})
+const saveChats=o=>save('cc_chats',o)
+const chatKey=(a,b)=>[a,b].sort().join('::')
+
+const getProjects=()=>load('cc_projects',[])
+const saveProjects=l=>save('cc_projects',l)
+
+const getEvents=()=>load('cc_events',[])
+const saveEvents=l=>save('cc_events',l)
+
+const getJobs=()=>load('cc_jobs',[])
+const saveJobs=l=>save('cc_jobs',l)
+
+const getSkills=()=>load('cc_skills',[])
+const saveSkills=l=>save('cc_skills',l)
+
+const getSkillReqs=()=>load('cc_skill_requests',[])
+const saveSkillReqs=l=>save('cc_skill_requests',l)
+
+const getRatings=()=>load('cc_ratings',{})        // { [facultyEmail]: [1,5,4,...] }
+const saveRatings=o=>save('cc_ratings',o)
+
+const getProfiles=()=>load('cc_profiles',{})      // { [email]: {bio:'', edu:[], ...} }
+const saveProfiles=o=>save('cc_profiles',o)
+
+const getUserCV=(email)=>localStorage.getItem('cc_cv_'+email)
+const setUserCV=(email,data)=>localStorage.setItem('cc_cv_'+email,data)
+
+/* =================== Sidebar Links =================== */
+const LINKS={
+  student:[
+    ['#dashboard','layout-dashboard','Dashboard'],
+    ['#skillswap','handshake','SkillSwap'],
+    ['#eventhub','calendar-days','EventHub'],
+    ['#faculty-rating','star','Faculty Rating'],
+    ['#projectxpo','code-2','ProjectXpo'],
+    ['#campustalk','message-square','CampusTalk'],
+    ['#campuscareer','briefcase','CampusCareer'],
+    ['#profile','user','My Profile']
+  ],
+  faculty:[
+    ['#dashboard','layout-dashboard','Dashboard'],
+    ['#skillswap','handshake','SkillSwap'],
+    ['#eventhub','calendar-days','EventHub'],
+    ['#faculty-ratings-view','star','View Ratings'],
+    ['#projectxpo','code-2','ProjectXpo'],
+    ['#campustalk','message-square','CampusTalk'],
+    ['#campuscareer','briefcase','CampusCareer'],
+    ['#profile','user','My Profile']
+  ],
+  admin:[
+    ['#dashboard','layout-dashboard','Dashboard'],
+    ['#admin-dashboard','shield-check','Admin'],
+    ['#eventhub','calendar-days','EventHub (Read/Moderate)'],
+    ['#projectxpo','code-2','ProjectXpo (Moderate)'],
+    ['#campustalk','message-square','CampusTalk'],
+    ['#campuscareer','briefcase','CampusCareer (Moderate)'],
+    ['#faculty-rating','star','Faculty Rating']
+  ]
+};
+
+function renderSidebar(role){
+  const nav=$('#sidebar-links'); nav.innerHTML='';
+  LINKS[role].forEach(([hash,icon,label])=>{
+    const a=document.createElement('a');
+    a.href=hash; a.className='nav-link flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600';
+    a.innerHTML=`<i data-lucide="${icon}" class="w-5 h-5 mr-3"></i>${label}`;
+    nav.appendChild(a);
+  });
+  setActiveNav(location.hash||LINKS[role][0][0]); lucide.createIcons();
+}
+function setActiveNav(hash){
+  $$('#sidebar-links .nav-link').forEach(el=>{
+    const active=el.getAttribute('href')===hash;
+    el.classList.toggle('bg-blue-100',active);
+    el.classList.toggle('text-blue-600',active);
+    el.classList.toggle('font-semibold',active);
+  });
+}
+function showPanel(id){$$('.panel').forEach(p=>p.classList.toggle('active',p.id===id)); lucide.createIcons()}
+
+/* =================== Auth =================== */
+function updateLoginFieldsForRole(){
+  const label=$('#login-credential-label');
+  const input=$('#login-credential');
+  const help=$('#login-credential-help');
+  if(STATE.role==='admin'){
+    label.textContent='Username'; input.type='text'; input.removeAttribute('pattern'); input.placeholder='admin';
+    $('#login-signup-hint').style.display='none'; help.textContent='Admin: use your username.'; 
+  }else{
+    label.textContent='Email'; input.type='email'; input.setAttribute('pattern','.+@seu\\.edu\\.bd$'); input.placeholder='your-id@seu.edu.bd';
+    $('#login-signup-hint').style.display='block'; help.textContent='Students/Faculty: use @seu.edu.bd email.';
+  }
+}
+function handleLogin(e){
+  e.preventDefault();
+  const cred=$('#login-credential').value.trim();
+  const pass=$('#login-password').value;
+
+  if(STATE.role==='admin'){
+    if(cred===ADMIN_LOGIN.username && pass===ADMIN_LOGIN.password){
+      STATE.currentUser={...ADMIN_PROFILE}; setSession(STATE.currentUser);
+      onAuthed(); toast('Logged in as Admin','info');
+      location.hash='#admin-dashboard';
+    }else toast('Invalid admin credentials','error');
+    return;
+  }
+
+  loadUsers();
+  const u=STATE.users.find(u=>u.email===cred && u.role===STATE.role);
+  if(!u || u.password!==pass){toast('Invalid credentials','error');return;}
+  STATE.currentUser={...u}; setSession(STATE.currentUser); onAuthed(); toast(`Welcome back, ${u.name.split(' ')[0]}!`);
+  location.hash='#dashboard';
+}
+
+/* Signup */
+function configureSignupFormForRole(){
+  const title=$('#signup-subtitle');
+  if(STATE.srole==='student'){
+    $('#su-id-wrap').style.display='block';
+    $('#su-name').placeholder='Nazmul Hasan';
+    $('#su-id').placeholder='2023100000081';
+    $('#su-email').placeholder='2023100000081@seu.edu.bd';
+    title.textContent='Student account: Name, Student ID, University Email, Password';
+    $('#signup-note').innerHTML='Placeholders: <b>Nazmul Hasan</b>, <b>2023100000081</b>, <b>2023100000081@seu.edu.bd</b>. (Faculty: Shimul Dey Katha)';
+    $('#su-role').value='student';
+  }else{
+    $('#su-id-wrap').style.display='none';
+    $('#su-name').placeholder='Shimul Dey Katha';
+    $('#su-email').placeholder='shimul.katha@seu.edu.bd';
+    title.textContent='Faculty account: Name, University Email, Password';
+    $('#signup-note').innerHTML='Placeholders: <b>Shimul Dey Katha</b>, <b>shimul.katha@seu.edu.bd</b>.';
+    $('#su-role').value='faculty';
+  }
+}
+function handleSignup(e){
+  e.preventDefault();
+  const name=$('#su-name').value.trim();
+  const email=$('#su-email').value.trim();
+  const pass=$('#su-password').value;
+  const role=$('#su-role').value;
+  const idVal=(role==='student')?($('#su-id').value.trim()):'—';
+
+  if(!/.+@seu\.edu\.bd$/.test(email)){ $('#su-email').classList.add('input-error'); $('#su-email-error').textContent='Use a valid @seu.edu.bd email'; return; }
+  if(!name || !pass){ toast('Please complete all fields','error'); return; }
+  if(role==='student' && !idVal){ toast('Student ID is required','error'); return; }
+
+  loadUsers();
+  if(STATE.users.some(u=>u.email===email)){ toast('Email already registered','error'); return; }
+
+  const user={role,name,id:idVal,email,password:pass};
+  STATE.users.push(user); saveUsers();
+
+  // Faculty auto-appear in rating list (by email presence, no extra work)
+  toast('Account created! You can log in now.','success');
+  $('#signup-form').reset();
+  showView('login'); window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function logout(){
+  clearSession(); STATE.currentUser=null;
+  $('#authenticated-shell').style.display='none';
+  $('#welcome-shell').style.display='flex';
+  location.hash=''; toast('Logged out','success');
+}
+
+function onAuthed(){
+  const u=STATE.currentUser;
+  $('#welcome-shell').style.display='none';
+  $('#authenticated-shell').style.display='block';
+
+  renderSidebar(u.role);
+  $('#role-chip').textContent=u.role.toUpperCase();
+  $('#welcome-name').textContent=u.name.split(' ')[0];
+  $('#sidebar-user-name').textContent=u.name;
+
+  const initials=u.name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
+  $('#sidebar-avatar').src=`https://placehold.co/40x40/3B82F6/FFFFFF?text=${initials}`;
+  $('#profile-avatar-2').src=`https://placehold.co/96x96/3B82F6/FFFFFF?text=${initials}`;
+  $('#profile-name-2').textContent=u.name;
+  $('#profile-id-2').textContent='ID: '+(u.id||'—');
+  $('#profile-email-2').textContent=u.email||'—';
+
+  // Role capabilities
+  $('#btn-post-project').classList.toggle('hidden', !(u.role==='student'||u.role==='faculty'));
+  $('#btn-post-job').classList.toggle('hidden', !(u.role==='faculty'));
+  $('#cv-wrap').classList.toggle('hidden', !(u.role==='student'));
+
+  // Default route
+  if(!location.hash) location.hash=(u.role==='admin')?'#admin-dashboard':'#dashboard';
+  route();
+
+  if(u.role==='admin') renderAdminUsers();
+  refreshAll();
+}
+
+/* =================== Router =================== */
+function route(){
+  const u=STATE.currentUser||getSession();
+  if(!u){$('#welcome-shell').style.display='flex';$('#authenticated-shell').style.display='none';return;}
+  $('#welcome-shell').style.display='none';$('#authenticated-shell').style.display='block';
+  const valid=new Set(LINKS[u.role].map(([h])=>h));
+  let hash=location.hash||(u.role==='admin'?'#admin-dashboard':'#dashboard');
+  if(!valid.has(hash)) hash=(u.role==='admin'?'#admin-dashboard':'#dashboard');
+  showPanel(hash.slice(1)); setActiveNav(hash);
+}
+window.addEventListener('hashchange',route);
+
+/* =================== Dashboard Refresh =================== */
+function refreshDashboard(){
+  const me=STATE.currentUser||getSession();
+  const reqs=getSkillReqs().filter(r=>r.toEmail===me.email);
+  $('#count-requests').textContent=reqs.length;
+
+  const jobs=getJobs();
+  $('#count-jobs').textContent=jobs.length;
+
+  const upcoming=getEvents().filter(e=>e.approved && new Date(e.start).getTime()>Date.now());
+  $('#count-events').textContent=upcoming.length;
+
+  const unread = countUnreadFor(me.email||me.name);
+  $('#count-unread').textContent=unread;
+  $('#unread-indicator').textContent='Unread: '+unread;
+
+  // Quick links
+  $('#card-jobs').onclick=()=>{location.hash='#campuscareer'};
+  $('#card-events').onclick=()=>{location.hash='#eventhub'};
+  $('#card-unread').onclick=()=>{location.hash='#campustalk'};
+  $('#card-requests').onclick=()=>{location.hash='#dashboard'; renderSkillRequestsList(reqs)};
+}
+function renderSkillRequestsList(reqs){
+  const wrap=$('#my-skill-requests'); wrap.innerHTML='';
+  if(!reqs.length){wrap.innerHTML='<div class="mt-4 text-sm muted">No skill requests yet.</div>'; return;}
+  const ul=document.createElement('ul'); ul.className='mt-6 space-y-2';
+  reqs.forEach(r=>{
+    const li=document.createElement('li');
+    li.className='bg-white p-3 rounded border';
+    li.innerHTML=`<b>Request from:</b> ${r.fromName} <span class="muted">(${r.fromId})</span> • <span class="muted">${new Date(r.ts).toLocaleString()}</span>`;
+    ul.appendChild(li);
+  });
+  wrap.appendChild(ul);
+}
+
+/* =================== SkillSwap & Skills in Profile =================== */
+async function addMySkill(){
+  const me=STATE.currentUser||getSession(); if(!me) return;
+  const title=$('#sk-title').value.trim();
+  const desc=$('#sk-desc').value.trim();
+  const img=await readFileAsDataURL($('#sk-image').files[0]);
+  const file=await readFileAsDataURL($('#sk-file').files[0]);
+  if(!title||!desc){toast('Add title & description','error');return;}
+  const list=getSkills();
+  list.unshift({id:uid(), ownerEmail:me.email, ownerName:me.name, ownerRole:me.role, title, desc, image:img, file, ts:now()});
+  saveSkills(list);
+  $('#sk-title').value=''; $('#sk-desc').value=''; $('#sk-image').value=''; $('#sk-file').value='';
+  renderMySkills(); renderSkills();
+  toast('Skill added!');
+}
+function renderMySkills(){
+  const me=STATE.currentUser||getSession(); if(!me) return;
+  const list=getSkills().filter(s=>s.ownerEmail===me.email);
+  const ul=$('#my-skill-list'); ul.innerHTML='';
+  list.forEach(s=>{
+    const li=document.createElement('li');
+    li.className='p-3 border rounded flex items-center gap-3';
+    li.innerHTML=`${s.image?`<img src="${s.image}" class="w-12 h-12 object-cover rounded">`:''}<div><b>${s.title}</b><div class="text-sm muted">${s.desc}</div></div>`;
+    ul.appendChild(li);
+  });
+}
+function renderSkills(filter=''){
+  const me=STATE.currentUser||getSession();
+  const wrap=$('#skills-list'); wrap.innerHTML='';
+  let list=getSkills();
+  if(filter){const f=filter.toLowerCase();list=list.filter(s=>s.title.toLowerCase().includes(f)||s.ownerName.toLowerCase().includes(f));}
+  if(!list.length){wrap.innerHTML='<div class="bg-white p-6 rounded-lg shadow-sm">No skills posted yet.</div>'; return;}
+  list.forEach(s=>{
+    const card=document.createElement('div');
+    card.className='bg-white rounded-lg shadow-sm border overflow-hidden card-hover';
+    card.innerHTML=`
+      ${s.image?`<img src="${s.image}" class="w-full h-40 object-cover">`:''}
+      <div class="p-5">
+        <div class="flex justify-between items-start">
+          <h3 class="text-xl font-bold">${s.title}</h3>
+          <span class="badge">${s.ownerRole}</span>
+        </div>
+        <p class="text-sm text-gray-600 mt-1">${s.desc}</p>
+        <p class="text-xs text-gray-500 mt-2">By <b>${s.ownerName}</b></p>
+        <div class="mt-3 flex gap-2">
+          <button class="bg-blue-600 text-white px-3 py-1.5 rounded ${me&&me.email===s.ownerEmail?'opacity-50 cursor-not-allowed':''}" ${me&&me.email===s.ownerEmail?'disabled':''}>Request Skill</button>
+        </div>
+      </div>`;
+    card.querySelector('button').onclick=()=>requestSkill(s);
+    wrap.appendChild(card);
+  });
+}
+function requestSkill(skill){
+  const me=STATE.currentUser||getSession(); if(!me) return;
+  if(me.email===skill.ownerEmail){toast('You own this skill.','error');return;}
+  const reqs=getSkillReqs();
+  reqs.unshift({id:uid(), skillId:skill.id, toEmail:skill.ownerEmail, fromEmail:me.email, fromName:me.name, fromId:me.id||'—', ts:now(), status:'pending'});
+  saveSkillReqs(reqs);
+  refreshDashboard(); toast('Request sent!');
+}
+
+/* =================== EventHub =================== */
+function canRemoveEvent(me,e){
+  if(me.role==='admin') return true;
+  if(me.role==='faculty') return true; // faculty can remove others
+  return e.ownerEmail===me.email;       // student: only own
+}
+function eventCard(e,me){
+  const date = `<p class="text-sm text-green-700 font-medium">${new Date(e.start).toLocaleString()} → ${new Date(e.end).toLocaleString()}</p>`;
+  const pending = e.approved ? '' : `<span class="pill">Pending approval</span>`;
+  const joinable = e.approved;
+  const joined = (e.attendees||[]).includes(me.email);
+  const canDelete = canRemoveEvent(me,e);
+  return `
+    <div class="bg-white rounded-lg shadow-sm overflow-hidden border card-hover">
+      ${e.image?`<img src="${e.image}" class="w-full h-40 object-cover">`:''}
+      <div class="p-5">
+        <div class="flex items-center justify-between">
+          <h3 class="text-xl font-bold">${e.title}</h3>
+          <div class="flex items-center gap-2">${pending}<span class="badge">${(e.attendees||[]).length} joined</span></div>
+        </div>
+        ${date}
+        <p class="text-gray-700 text-sm mt-2">${e.desc}</p>
+        <p class="text-xs text-gray-500 mt-2">By <b>${e.ownerName}</b> (${e.ownerRole})</p>
+        <div class="mt-3 flex gap-2">
+          <button ${!joinable?'disabled class="bg-gray-200 text-gray-600 px-3 py-1.5 rounded"':'class="bg-green-600 text-white px-3 py-1.5 rounded"'} data-join="${e.id}">${joined?'Leave':'Join'}</button>
+          ${canDelete?`<button class="bg-red-600 text-white px-3 py-1.5 rounded" data-del="${e.id}">Remove</button>`:''}
+        </div>
+      </div>
+    </div>`;
+}
+async function saveEvent(){
+  const me=STATE.currentUser||getSession(); if(!me) return;
+  const title=$('#ev-title').value.trim(), desc=$('#ev-desc').value.trim();
+  const start=$('#ev-start').value, end=$('#ev-end').value;
+  const image=await readFileAsDataURL($('#ev-image').files[0]);
+  if(!title||!desc||!start||!end){toast('Fill all fields','error');return;}
+  const list=getEvents();
+  list.unshift({id:uid(), title, desc, image, start, end, ownerEmail:me.email, ownerName:me.name, ownerRole:me.role, approved:false, attendees:[], ts:now()});
+  saveEvents(list);
+  $('#event-modal').classList.remove('show'); $('#ev-title').value='';$('#ev-desc').value='';$('#ev-image').value='';$('#ev-start').value='';$('#ev-end').value='';
+  renderEvents(); renderApprovals(); refreshDashboard();
+  toast('Event submitted for admin approval','info');
+}
+function joinLeaveEvent(id){
+  const me=STATE.currentUser||getSession();
+  const list=getEvents(); const e=list.find(x=>x.id===id); if(!e) return;
+  e.attendees = e.attendees || [];
+  const i=e.attendees.indexOf(me.email);
+  if(i>-1) e.attendees.splice(i,1); else e.attendees.push(me.email);
+  saveEvents(list); renderEvents(); refreshDashboard();
+}
+function deleteEvent(id){
+  const list=getEvents().filter(x=>x.id!==id); saveEvents(list); renderEvents(); renderApprovals(); refreshDashboard(); toast('Event removed','success');
+}
+function renderEvents(filter=''){
+  const me=STATE.currentUser||getSession();
+  let list=getEvents();
+  // Visible: approved for all; plus own unapproved
+  list=list.filter(e=>e.approved || e.ownerEmail===me.email);
+  if(filter){const f=filter.toLowerCase();list=list.filter(e=>e.title.toLowerCase().includes(f) || e.desc.toLowerCase().includes(f));}
+  const wrap=$('#events-list'); wrap.innerHTML='';
+  if(!list.length){wrap.innerHTML='<div class="bg-white p-6 rounded-lg shadow-sm">No events.</div>'; return;}
+  wrap.innerHTML=list.map(e=>eventCard(e,me)).join('');
+  // Hook buttons
+  wrap.querySelectorAll('button[data-join]').forEach(b=>b.onclick=()=>joinLeaveEvent(b.getAttribute('data-join')));
+  wrap.querySelectorAll('button[data-del]').forEach(b=>b.onclick=()=>deleteEvent(b.getAttribute('data-del')));
+}
+
+/* Admin approvals */
+function renderApprovals(){
+  const me=STATE.currentUser||getSession(); if(me.role!=='admin'){ $('#pending-events').innerHTML=''; return; }
+  const pending=getEvents().filter(e=>!e.approved);
+  const ul=$('#pending-events'); ul.innerHTML='';
+  if(!pending.length){ul.innerHTML='<li class="text-sm muted">No pending events.</li>'; return;}
+  pending.forEach(e=>{
+    const li=document.createElement('li');
+    li.className='border rounded-lg p-3 flex items-center justify-between';
+    li.innerHTML=`<div><p class="font-semibold">${e.title}</p><p class="text-xs muted">By ${e.ownerName}</p></div>
+      <div class="flex gap-2">
+        <button class="px-3 py-1 rounded bg-green-100 text-green-700 text-xs" data-approve="${e.id}">Approve</button>
+        <button class="px-3 py-1 rounded bg-red-100 text-red-700 text-xs" data-reject="${e.id}">Reject</button>
+      </div>`;
+    ul.appendChild(li);
+  });
+  ul.querySelectorAll('[data-approve]').forEach(b=>b.onclick=()=>{const l=getEvents();const e=l.find(x=>x.id===b.dataset.approve);if(e){e.approved=true;saveEvents(l);renderApprovals();renderEvents();refreshDashboard();toast('Approved','success')}})
+  ul.querySelectorAll('[data-reject]').forEach(b=>b.onclick=()=>{saveEvents(getEvents().filter(x=>x.id!==b.dataset.reject));renderApprovals();renderEvents();toast('Rejected & removed','error')})
+}
+
+/* =================== Faculty Rating =================== */
+function renderFacultyList(filter=''){
+  const me=STATE.currentUser||getSession();
+  loadUsers(); const fac=STATE.users.filter(u=>u.role==='faculty');
+  const wrap=$('#fac-list'); wrap.innerHTML='';
+  let list=fac; if(filter){const f=filter.toLowerCase();list=fac.filter(u=>u.name.toLowerCase().includes(f)||u.email.toLowerCase().includes(f));}
+  if(!list.length){wrap.innerHTML='<div class="bg-white p-6 rounded-lg shadow-sm">No faculty found.</div>'; return;}
+  const ratings=getRatings();
+  list.forEach(f=>{
+    const arr=ratings[f.email]||[];
+    const avg=arr.length? (arr.reduce((a,b)=>a+b,0)/arr.length):0;
+    const pct=Math.round(avg*20);
+    const card=document.createElement('div');
+    card.className='bg-white rounded-lg shadow-sm border p-5';
+    card.innerHTML=`
+      <div class="flex items-center justify-between mb-2"><div><h3 class="text-lg font-bold">${f.name}</h3><p class="text-sm muted">${f.email}</p></div><div class="text-right"><div class="text-2xl font-bold">${avg.toFixed(1)}</div><div class="text-xs muted">${pct}%</div></div></div>
+      <div class="flex gap-1 mb-2" data-stars></div>
+      <button class="bg-gray-200 px-3 py-1.5 rounded text-sm" data-view="${f.email}">View details</button>`;
+    const starWrap=card.querySelector('[data-stars]');
+    for(let i=1;i<=5;i++){
+      const b=document.createElement('button');
+      b.innerHTML='<i data-lucide="star" class="w-5 h-5"></i>'; b.className='text-yellow-400';
+      if(me.role==='student'){ b.onclick=()=>rateFaculty(f.email,i) } else { b.disabled=true; b.classList.add('opacity-50') }
+      starWrap.appendChild(b);
+    }
+    wrap.appendChild(card);
+  });
+  lucide.createIcons();
+}
+function rateFaculty(email,score){
+  const r=getRatings(); r[email]=(r[email]||[]); r[email].push(score); saveRatings(r); renderFacultyList($('#fac-search').value.trim()); toast('Thanks for rating!');
+}
+
+/* =================== ProjectXpo =================== */
+function canRemoveProject(me,p){ return me.role==='admin' || p.authorEmail===me.email; }
+function projectCard(p,me){
+  return `
+  <div class="bg-white rounded-lg shadow-sm overflow-hidden border card-hover">
+    ${p.image?`<img src="${p.image}" class="w-full h-40 object-cover">`:''}
+    <div class="p-5">
+      <h3 class="text-xl font-bold mb-1">${p.title}</h3>
+      <p class="text-gray-700 text-sm mb-2">${p.desc}</p>
+      <p class="text-xs text-gray-500 mb-2">By <b>${p.authorName}</b> (${p.authorRole})</p>
+      <div class="flex items-center justify-between">
+        <a class="text-blue-600 underline text-sm" ${p.file?`href="${p.file}" download="project_${p.id}.bin"`:'href="#" onclick="return false;" class="text-gray-400 cursor-not-allowed text-sm"'}>Download file</a>
+        ${canRemoveProject(me,p)?`<button class="bg-red-600 text-white px-3 py-1.5 rounded" data-del="${p.id}">Remove</button>`:''}
+      </div>
+    </div>
+  </div>`;
+}
+async function saveProject(){
+  const me=STATE.currentUser||getSession(); if(!me) return;
+  const title=$('#pj-title').value.trim(), desc=$('#pj-desc').value.trim();
+  const image=await readFileAsDataURL($('#pj-image').files[0]);
+  const file=await readFileAsDataURL($('#pj-file').files[0]);
+  if(!title||!desc){toast('Add title & description','error');return;}
+  const list=getProjects();
+  list.unshift({id:uid(), title, desc, image, file, authorEmail:me.email, authorName:me.name, authorRole:me.role, ts:now()});
+  saveProjects(list);
+  $('#project-modal').classList.remove('show'); $('#pj-title').value='';$('#pj-desc').value='';$('#pj-image').value='';$('#pj-file').value='';
+  renderProjects(); toast('Project posted!');
+}
+function renderProjects(){
+  const me=STATE.currentUser||getSession();
+  const wrap=$('#projects-list'); const list=getProjects();
+  if(!list.length){wrap.innerHTML='<div class="bg-white p-6 rounded-lg shadow-sm">No projects yet.</div>'; return;}
+  wrap.innerHTML=list.map(p=>projectCard(p,me)).join('');
+  wrap.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{saveProjects(getProjects().filter(x=>x.id!==b.dataset.del)); renderProjects(); toast('Project removed','success')});
+}
+
+/* =================== CampusCareer =================== */
+function jobCard(j,me){
+  const isOwner=j.authorEmail===me.email;
+  const canRemove= me.role==='admin' || isOwner;
+  return `
+  <div class="bg-white rounded-lg shadow-sm overflow-hidden border card-hover">
+    ${j.image?`<img src="${j.image}" class="w-full h-36 object-cover">`:''}
+    <div class="p-5">
+      <div class="flex items-center justify-between"><h3 class="text-xl font-bold">${j.title}</h3><span class="badge">${j.type}</span></div>
+      <p class="text-gray-700 text-sm mt-1">${j.desc}</p>
+      <p class="text-xs text-gray-500 mt-2">Posted by <b>${j.authorRole}</b></p>
+      <div class="flex items-center justify-between mt-3">
+        ${me.role==='student'
+          ? `<button class="bg-blue-600 text-white px-3 py-1.5 rounded" data-apply="${j.id}">Apply</button>`
+          : '<span></span>'}
+        ${canRemove?`<button class="bg-red-600 text-white px-3 py-1.5 rounded" data-del="${j.id}">Remove</button>`:''}
+      </div>
+    </div>
+  </div>`;
+}
+async function saveJob(){
+  const me=STATE.currentUser||getSession();
+  const title=$('#job-title').value.trim(), type=$('#job-type').value.trim(), desc=$('#job-desc').value.trim();
+  const image=await readFileAsDataURL($('#job-image').files[0]);
+  if(!title||!type||!desc){toast('Fill all job fields','error');return;}
+  push('cc_jobs',{id:uid(), title, type, desc, image, authorEmail:me.email, authorRole:me.role, ts:now()});
+  $('#job-modal').classList.remove('show'); $('#job-title').value='';$('#job-type').value='';$('#job-desc').value='';$('#job-image').value='';
+  renderJobs(); refreshDashboard(); toast('Job posted!');
+}
+function renderJobs(filter=''){
+  const me=STATE.currentUser||getSession();
+  let list=getJobs();
+  if(filter){const f=filter.toLowerCase(); list=list.filter(j=>j.title.toLowerCase().includes(f)||j.type.toLowerCase().includes(f)||j.desc.toLowerCase().includes(f));}
+  const wrap=$('#jobs-list'); if(!list.length){wrap.innerHTML='<div class="bg-white p-6 rounded-lg shadow-sm">No posts yet.</div>'; return;}
+  wrap.innerHTML=list.map(j=>jobCard(j,me)).join('');
+  wrap.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{saveJobs(getJobs().filter(x=>x.id!==b.dataset.del)); renderJobs(); refreshDashboard(); toast('Removed','success')});
+  wrap.querySelectorAll('[data-apply]').forEach(b=>b.onclick=()=>applyJob(b.dataset.apply));
+}
+function applyJob(id){
+  const me=STATE.currentUser||getSession();
+  const cv=getUserCV(me.email);
+  if(!cv){toast('Upload your CV first (top of CampusCareer)','error'); return;}
+  toast('Applied using saved CV','success');
+}
+
+/* =================== CampusTalk =================== */
+let activeChatWith=null;
+function participants(){ loadUsers(); const base=[...STATE.users]; // include admin as contact
+  return [ADMIN_PROFILE, ...base]; }
+function countUnreadFor(my){ const chats=getChats(); let c=0;
+  for(const k of Object.keys(chats)){ const msgs=chats[k];
+    msgs.forEach(m=>{ if(m.to===my && !m.seen) c++; });
+  } return c;
+}
+function renderContacts(){
+  const me=STATE.currentUser||getSession(); const wrap=$('#contacts'); wrap.innerHTML='';
+  const list=participants().filter(x=> (x.email||x.name)!==(me.email||me.name));
+  const query=($('#chat-search').value||'').toLowerCase();
+  const unreadMap={};
+  const chats=getChats();
+  Object.keys(chats).forEach(k=>{
+    chats[k].forEach(m=>{if(m.to===(me.email||me.name) && !m.seen){const other=k.replace((me.email||me.name),'').replace('::',''); unreadMap[other]=(unreadMap[other]||0)+1;}})
+  });
+  list.filter(x=>x.name.toLowerCase().includes(query)).forEach(x=>{
+    const el=document.createElement('div');
+    const otherKey=x.email||x.name;
+    const unread=unreadMap[otherKey]||0;
+    el.className='p-4 flex items-center border-b hover:bg-gray-50 cursor-pointer '+(unread?'bg-blue-50 font-semibold':'');
+    el.innerHTML=`<img src="https://placehold.co/48x48/E2E8F0/4A5568?text=${x.name[0].toUpperCase()}" class="w-12 h-12 rounded-full mr-3"><div><p>${x.name}</p><p class="text-sm ${unread?'text-blue-700':'text-gray-500'}">${x.email||'admin'}</p></div>`;
+    el.addEventListener('click',()=>openChatWith(x));
+    wrap.appendChild(el);
+  });
+  $('#unread-indicator').textContent='Unread: '+countUnreadFor(me.email||me.name);
+}
+function openChatWith(other){
+  activeChatWith=other;
+  $('#chat-header').innerHTML=`<img src="https://placehold.co/40x40/E2E8F0/4A5568?text=${other.name[0].toUpperCase()}" class="w-10 h-10 rounded-full"><div>${other.name} <span class="text-xs text-gray-500 ml-2">${other.email||'admin'}</span></div>`;
+  $('#chat-input').disabled=false; $('#chat-send').disabled=false;
+  renderThread(); // also marks msgs to me as seen
+  renderContacts(); refreshDashboard();
+}
+function renderThread(){
+  const me=STATE.currentUser||getSession(); if(!me||!activeChatWith) return;
+  const key=chatKey((me.email||me.name),(activeChatWith.email||activeChatWith.name));
+  const threads=getChats(); const msgs=threads[key]||[];
+  // mark incoming as seen
+  msgs.forEach(m=>{ if(m.to===(me.email||me.name)) m.seen=true; }); saveChats(threads);
+  const box=$('#chat-thread'); box.innerHTML='';
+  msgs.forEach(m=>{
+    const mine=m.from===(me.email||me.name);
+    const p=document.createElement('div');
+    p.className='flex '+(mine?'justify-end':'justify-start');
+    const status = mine ? (m.seen ? '<span class="block text-[10px] mt-1 text-green-600">Read</span>' : '<span class="block text-[10px] mt-1 text-gray-500">Unseen</span>') : '';
+    p.innerHTML=`<div class="${mine?'bg-blue-600 text-white':'bg-gray-200 text-gray-800'} p-3 rounded-lg max-w-xs"><div>${m.text}</div>${status}</div>`;
+    box.appendChild(p);
+  });
+  box.scrollTop=box.scrollHeight;
+  renderContacts(); refreshDashboard();
+}
+$('#chat-send').addEventListener('click',sendMsg);
+$('#chat-input').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();sendMsg();}});
+function sendMsg(){
+  const me=STATE.currentUser||getSession(); if(!me||!activeChatWith) return;
+  const input=$('#chat-input'); const text=input.value.trim(); if(!text) return;
+  const key=chatKey((me.email||me.name),(activeChatWith.email||activeChatWith.name)); const threads=getChats();
+  threads[key]=(threads[key]||[]).concat([{from:(me.email||me.name),to:(activeChatWith.email||activeChatWith.name),text,ts:now(),seen:false}]);
+  saveChats(threads); input.value=''; renderThread();
+}
+
+/* =================== Admin tools =================== */
+function renderAdminUsers(){
+  loadUsers();
+  const tbody=$('#user-table'); tbody.innerHTML='';
+  STATE.users.forEach((u,i)=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td class="py-2">${u.name}</td><td>${u.id||'—'}</td><td><span class="px-2 py-0.5 rounded bg-gray-100 text-gray-700 role-badge">${u.role}</span></td>
+      <td class="text-right">
+        <button class="px-2 py-1 rounded bg-yellow-100 text-yellow-700 text-xs" onclick="promoteUser(${i})">Promote</button>
+        <button class="px-2 py-1 rounded bg-red-100 text-red-700 text-xs" onclick="banUser(${i})">Ban</button>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+function promoteUser(i){loadUsers();const u=STATE.users[i];if(!u)return;u.role=(u.role==='student'?'faculty':'student');saveUsers();renderAdminUsers();toast('Role toggled','info')}
+function banUser(i){loadUsers();STATE.users.splice(i,1);saveUsers();renderAdminUsers();toast('User banned','error')}
+
+/* =================== Jobs, Projects, Events interactions =================== */
+function hookModals(){
+  // Projects
+  $('#btn-post-project').onclick=()=>$('#project-modal').classList.add('show');
+  $('#pj-cancel').onclick=()=>$('#project-modal').classList.remove('show');
+  $('#pj-save').onclick=saveProject;
+
+  // Events
+  $('#btn-create-event').onclick=()=>$('#event-modal').classList.add('show');
+  $('#ev-cancel').onclick=()=>$('#event-modal').classList.remove('show');
+  $('#ev-save').onclick=saveEvent;
+
+  // Jobs
+  $('#btn-post-job').onclick=()=>$('#job-modal').classList.add('show');
+  $('#job-cancel').onclick=()=>$('#job-modal').classList.remove('show');
+  $('#job-save').onclick=saveJob;
+
+  // CV save
+  $('#cv-save').onclick=async()=>{ const me=STATE.currentUser||getSession(); const f=$('#cv-file').files[0]; if(!f){toast('Choose a CV file','error');return;} const data=await readFileAsDataURL(f); setUserCV(me.email,data); $('#cv-status').textContent='CV saved.'; toast('CV saved','success') };
+}
+
+/* =================== Profile Save =================== */
+function renderProfile(){
+  const me=STATE.currentUser||getSession();
+  const profiles=getProfiles(); const p=profiles[me.email]||{bio:'', edu:[]};
+  $('#bio-text').value=p.bio||'';
+  const ul=$('#edu-list'); ul.innerHTML=''; (p.edu||[]).forEach((e,i)=>{const li=document.createElement('li');li.className='p-2 border rounded flex justify-between items-center';li.innerHTML=`<div><b>${e.school}</b> — ${e.degree} • ${e.result}</div><button class="text-red-600 text-sm" data-del="${i}">Remove</button>`; ul.appendChild(li);});
+  ul.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{const idx=+b.dataset.del; p.edu.splice(idx,1); profiles[me.email]=p; saveProfiles(profiles); renderProfile();});
+}
+function saveBio(){const me=STATE.currentUser||getSession(); const profiles=getProfiles(); const p=profiles[me.email]||{bio:'',edu:[]}; p.bio=$('#bio-text').value; profiles[me.email]=p; saveProfiles(profiles); toast('Bio saved')}
+function addEdu(){const me=STATE.currentUser||getSession(); const profiles=getProfiles(); const p=profiles[me.email]||{bio:'',edu:[]}; const school=$('#edu-school').value.trim(), degree=$('#edu-degree').value.trim(), result=$('#edu-result').value.trim(); if(!school||!degree){toast('Add school & degree','error');return;} p.edu.push({school,degree,result}); profiles[me.email]=p; saveProfiles(profiles); $('#edu-school').value='';$('#edu-degree').value='';$('#edu-result').value=''; renderProfile(); toast('Added education')}
+$('#bio-save').onclick=saveBio; $('#edu-add').onclick=addEdu; $('#sk-add').onclick=addMySkill;
+
+/* =================== Searches =================== */
+$('#skill-search-btn').onclick=()=>renderSkills($('#skill-search').value.trim());
+$('#event-search-btn').onclick=()=>renderEvents($('#event-search').value.trim());
+$('#fac-search-btn').onclick=()=>renderFacultyList($('#fac-search').value.trim());
+$('#job-search-btn').onclick=()=>renderJobs($('#job-search').value.trim());
+$('#chat-search').addEventListener('input',renderContacts);
+
+/* =================== Global refresh =================== */
+function refreshAll(){
+  renderProjects(); renderEvents(); renderApprovals(); renderFacultyList(); renderContacts(); renderProfile(); renderMySkills(); renderSkills(); renderJobs(); refreshDashboard();
+}
+
+/* =================== View helpers & boot =================== */
+function showView(id){$$('.view').forEach(v=>v.classList.toggle('active',v.id===id)); lucide.createIcons()}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  lucide.createIcons();
+
+  // Login role selectors
+  $$('#login .role-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      $$('#login .role-btn').forEach(b=>b.classList.remove('ring-2','ring-blue-500','bg-blue-100'));
+      btn.classList.add('ring-2','ring-blue-500','bg-blue-100');
+      STATE.role=btn.dataset.role; updateLoginFieldsForRole();
+    });
+  });
+  updateLoginFieldsForRole();
+
+  // Signup link <-> Login
+  $('#go-signup').addEventListener('click',()=>{ showView('signup'); window.scrollTo({top:0,behavior:'smooth'}); });
+  $('#back-to-login').addEventListener('click',()=>{ showView('login'); window.scrollTo({top:0,behavior:'smooth'}); });
+
+  // Signup role toggle
+  $$('#signup .srole-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      $$('#signup .srole-btn').forEach(b=>b.classList.remove('ring-2','ring-blue-500','bg-blue-100'));
+      btn.classList.add('ring-2','ring-blue-500','bg-blue-100');
+      STATE.srole=btn.dataset.srole; configureSignupFormForRole();
+    });
+  });
+  configureSignupFormForRole();
+
+  // Form handlers
+  window.handleLogin=handleLogin; window.handleSignup=handleSignup; window.logout=logout;
+
+  // Restore session
+  const sess=getSession(); if(sess){STATE.currentUser=sess; onAuthed();}
+  route(); refreshAll(); hookModals();
+});
+</script>
+</body>
+</html>
